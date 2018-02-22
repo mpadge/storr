@@ -367,6 +367,10 @@ R6_storr <- R6::R6Class(
       self$import(storr_rds(path, mangle_key = TRUE), names, namespace)
     },
 
+    check = function(full = TRUE, quiet = FALSE, progress = !quiet) {
+      storr_check(self, full,quiet, progress)
+    },
+
     ## Utility function that will come in useful in a few places:
     hash_object = function(object) {
       self$hash_raw(self$serialize_object(object))
@@ -384,6 +388,39 @@ storr_mset_hash <- function(obj, key, namespace, hash) {
   } else {
     obj$driver$mset_hash(key, namespace, hash)
   }
+}
+
+storr_check <- function(obj, full, quiet, progress) {
+  hash_length <- nchar(obj$hash_object(NULL))
+
+  if (!quiet) {
+    message("Checking keys")
+  }
+  res_keys <- obj$driver$check_keys(full, hash_length, progress)
+  if (!quiet) {
+    n <- lengths(res_keys)
+    m <- sum(n)
+    if (m > 0L) {
+      message(sprintf("...found %d corrupt keys in %d namespaces",
+                      m, length(n[n > 0])))
+    } else {
+      message("...OK")
+    }
+  }
+
+  if (!quiet) {
+    message("Checking objects")
+  }
+  res_objects <- obj$driver$check_objects(full, hash_length, progress)
+  if (!quiet) {
+    if (length(res_objects) > 0L) {
+      message(sprintf("...found %d corrupt objects", length(res_objects)))
+    } else {
+      message("...OK")
+    }
+  }
+
+  list(objects = res_objects, keys = res_keys)
 }
 
 ##' @export
